@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      窗口背景色。App 启动到 Compose 画出第一帧之间会短暂显示这个颜色，
+      所以它必须是一个和主题接近的实色 —— 用透明会露出黑色，看起来就是「顶部一条黑边」。
+    -->
+    <color name="window_background">#FFFBFE</color>
+</resources>

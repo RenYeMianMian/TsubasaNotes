@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tsubasa</string>
+    <string name="widget_label">Tsubasa · List</string>
+    <string name="widget_add_label">Tsubasa · Quick add</string>
+    <string name="widget_description">View, check off and reorder your notes right on the home screen</string>
+    <string name="widget_add_description">Create a note in one tap</string>
+
+    <string name="widget_empty">No notes yet\nTap + in the top right to add one</string>
+    <string name="widget_title_default">Tsubasa</string>
+    <string name="widget_title_todo">%1$d to go</string>
+    <string name="widget_title_all_done">All done 🎉</string>
+    <string name="widget_title_empty">No notes yet</string>
+    <string name="widget_prev_page">Previous page</string>
+    <string name="widget_next_page">Next page</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_add_note">New</string>
+    <string name="widget_toggle_done">Toggle done</string>
+    <string name="widget_move_up">Move up</string>
+    <string name="widget_delete">Delete</string>
+
+    <string name="input_hint">Write something…</string>
+    <string name="action_add">Add</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_clear_done">Clear done</string>
+    <string name="action_sort_done">Move done to bottom</string>
+    <string name="action_select">Select</string>
+    <string name="action_done_select">Done</string>
+    <string name="action_search">Search</string>
+    <string name="action_mark_done">Mark as done</string>
+    <string name="action_mark_undo">Mark as not done</string>
+    <string name="action_select_all">Select all</string>
+    <string name="search_hint">Search notes</string>
+
+    <string name="tab_all">All</string>
+    <string name="tab_todo">To do</string>
+    <string name="tab_done">Done</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_page_size_app">Notes per page in the app</string>
+    <string name="settings_page_size_widget">Notes per page in the widget</string>
+    <string name="settings_widget_show_done">Show completed notes in the widget</string>
+    <string name="settings_group_done">Group completed notes at the bottom</string>
+    <string name="section_todo">To do</string>
+    <string name="section_done">Done</string>
+
+    <string name="settings_background">Custom background</string>
+    <string name="settings_app_bg">App background</string>
+    <string name="settings_widget_bg">Widget background</string>
+    <string name="settings_widget_opacity">Widget background opacity</string>
+    <string name="settings_blur">Background blur strength</string>
+    <string name="bg_pick">Choose image</string>
+    <string name="bg_change">Change</string>
+    <string name="bg_clear">Reset</string>
+    <string name="bg_load_failed">Couldn\'t read that image, try another one</string>
+
+    <string name="settings_widget_theme">Widget colors</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_custom">Custom color</string>
+    <string name="settings_seed">Pick a color</string>
+    <string name="settings_app_theme">App appearance</string>
+    <string name="settings_app_color">App color</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_system_short">Follow system</string>
+    <string name="settings_preview">Preview</string>
+    <string name="settings_preview_done">Buy milk</string>
+    <string name="settings_preview_todo">Write report</string>
+    <string name="page_indicator">%1$d-%2$d / %3$d   ·   page %4$d/%5$d</string>
+    <string name="settings_about_text">Tsubasa · a notes app built around its home-screen widget</string>
+
+    <string name="settings_language">Language</string>
+    <string name="settings_lang_system">Follow system</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">日本語</string>
+
+    <string name="empty_list">No notes yet — write your first one in the box below</string>
+    <string name="search_no_match">No notes match “%1$s”</string>
+    <string name="drag_handle">Drag to reorder</string>
+    <string name="delete_note">Delete</string>
+    <string name="edit_note">Edit</string>
+    <string name="undo">Undo</string>
+    <string name="deleted_toast">Deleted</string>
+    <string name="selected_count">%1$d selected</string>
+</resources>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">忆记事</string>
+    <string name="widget_label">忆记事 · 列表</string>
+    <string name="widget_add_label">忆记事 · 快速添加</string>
+    <string name="widget_description">在桌面直接查看、勾选、排序你的记事</string>
+    <string name="widget_add_description">一键新建记事</string>
+
+    <string name="widget_empty">还没有记事\n点右上角 + 新建</string>
+    <string name="widget_title_default">忆记事</string>
+    <string name="widget_title_todo">还有 %1$d 项待办</string>
+    <string name="widget_title_all_done">都做完了 🎉</string>
+    <string name="widget_title_empty">还没有记事</string>
+    <string name="widget_prev_page">上一页</string>
+    <string name="widget_next_page">下一页</string>
+    <string name="widget_refresh">刷新</string>
+    <string name="widget_add_note">新建</string>
+    <string name="widget_toggle_done">切换完成状态</string>
+    <string name="widget_move_up">上移</string>
+    <string name="widget_delete">删除</string>
+
+    <string name="input_hint">记点什么…</string>
+    <string name="action_add">添加</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_settings">设置</string>
+    <string name="action_clear_done">清除已完成</string>
+    <string name="action_sort_done">已完成沉底</string>
+    <string name="action_select">多选</string>
+    <string name="action_done_select">完成</string>
+    <string name="action_search">搜索</string>
+    <string name="action_mark_done">标记完成</string>
+    <string name="action_mark_undo">标记未完成</string>
+    <string name="action_select_all">全选</string>
+    <string name="search_hint">搜索记事</string>
+
+    <string name="tab_all">全部</string>
+    <string name="tab_todo">未完成</string>
+    <string name="tab_done">已完成</string>
+
+    <string name="settings_title">设置</string>
+    <string name="settings_page_size_app">应用每页条数</string>
+    <string name="settings_page_size_widget">小组件每页条数</string>
+    <string name="settings_widget_show_done">小组件显示已完成项</string>
+    <string name="settings_group_done">已完成沉底并分组</string>
+    <string name="section_todo">未完成</string>
+    <string name="section_done">已完成</string>
+
+    <string name="settings_background">自定义背景</string>
+    <string name="settings_app_bg">软件背景</string>
+    <string name="settings_widget_bg">小组件背景</string>
+    <string name="settings_widget_opacity">小组件背景不透明度</string>
+    <string name="settings_blur">背景模糊强度</string>
+    <string name="bg_pick">选择图片</string>
+    <string name="bg_change">更换</string>
+    <string name="bg_clear">恢复默认</string>
+    <string name="bg_load_failed">图片读取失败，换一张试试</string>
+
+    <string name="settings_widget_theme">小组件配色</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_custom">自定义颜色</string>
+    <string name="settings_seed">选择颜色</string>
+    <string name="settings_app_theme">应用外观</string>
+    <string name="settings_app_color">应用配色</string>
+    <string name="settings_theme_light">浅色</string>
+    <string name="settings_theme_dark">深色</string>
+    <string name="settings_theme_system_short">跟随系统</string>
+    <string name="settings_preview">预览</string>
+    <string name="settings_preview_done">买牛奶</string>
+    <string name="settings_preview_todo">写周报</string>
+    <string name="page_indicator">%1$d-%2$d / %3$d   ·   第 %4$d/%5$d 页</string>
+    <string name="settings_about_text">忆记事 · 桌面小组件优先的记事应用</string>
+
+    <string name="settings_language">语言</string>
+    <string name="settings_lang_system">跟随系统</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="lang_ja">日本語</string>
+
+    <string name="empty_list">还没有记事，在下面输入框写第一条吧</string>
+    <string name="search_no_match">没有匹配「%1$s」的记事</string>
+    <string name="drag_handle">拖动排序</string>
+    <string name="delete_note">删除</string>
+    <string name="edit_note">编辑</string>
+    <string name="undo">撤销</string>
+    <string name="deleted_toast">已删除</string>
+    <string name="selected_count">已选 %1$d 项</string>
+</resources>

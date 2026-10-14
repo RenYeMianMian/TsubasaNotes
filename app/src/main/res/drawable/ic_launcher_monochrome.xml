@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 与前景层同一安全区缩放 -->
+    <group
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:pivotX="54"
+        android:pivotY="54">
+
+    <!-- 实心剪影，evenOdd 让内部子路径成为镂空 -->
+    <path
+        android:pathData="M33 19 L29 44 C26 51 26 56 26 62 C26 79 38 89 54 89 C70 89 82 79 82 62 C82 56 82 51 79 44 L75 19 L54 31 L33 19 Z
+            M30.5 60 a6.5,7 0 1,0 13,0 a6.5,7 0 1,0 -13,0 Z
+            M64.5 60 a6.5,7 0 1,0 13,0 a6.5,7 0 1,0 -13,0 Z
+            M50 70 L58 70 L54 75 Z
+            M54 73.6 C54 78.4 50.4 80.4 47.4 78.8 L48.6 76.6 C50.9 77.6 51.4 76.0 51.4 73.6 Z
+            M54 73.6 C54 78.4 57.6 80.4 60.6 78.8 L59.4 76.6 C57.1 77.6 56.6 76.0 56.6 73.6 Z
+            M34.49 63.02 L28.49 60.02 L27.51 61.98 L33.51 64.98 Z
+            M33 69.9 L27 69.9 L27 72.1 L33 72.1 Z
+            M74.49 64.98 L80.49 61.98 L79.51 60.02 L73.51 63.02 Z
+            M75 72.1 L81 72.1 L81 69.9 L75 69.9 Z"
+        android:fillColor="#000000"
+        android:fillType="evenOdd" />
+    </group>
+</vector>

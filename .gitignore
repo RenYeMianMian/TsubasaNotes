@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# 本机路径配置（sdk.dir 是本机绝对路径，换机器就失效，不入库）
+local.properties
+
+# 签名密钥、口令与备份（口令公开 = 任何人都能签一个覆盖包）
+*.keystore
+*.jks
+*.keystore.bak
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# 构建产物
+*.apk
+*.aab
+*.ap_

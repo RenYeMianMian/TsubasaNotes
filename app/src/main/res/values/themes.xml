@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      基础主题。
+
+      关键点（修「顶部黑边 + 状态栏图标看不见」）：
+      - 之前 windowBackground 是 @android:color/transparent，而窗口又没有铺满系统栏，
+        结果状态栏区域背后什么都没有 -> 显示成黑色；
+        同时浅色模式下图标被设成深色 -> 深色图标画在黑色上 = 看不见。
+      - 现在给 windowBackground 一个真实颜色（浅色/深色两套，见 values-night），
+        并让 Activity 走 edge-to-edge（见 MainActivity），
+        Compose 的根 Surface 会一直铺到状态栏底下，状态栏区域就跟着 App 配色走。
+    -->
+    <style name="Theme.Tsubasa" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <!-- 让系统栏背景由我们绘制，避免系统再糊一层不透明色 -->
+        <item name="android:windowDrawsSystemBarBackgrounds" tools:targetApi="lollipop">true</item>
+    </style>
+</resources>

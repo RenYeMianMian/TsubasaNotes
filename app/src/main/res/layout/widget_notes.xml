@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  背景用一个铺满的 ImageView 承载：它显示白色圆角矩形，再由 WidgetRenderer
+  通过 setColorFilter 上色。
+
+  为什么不用 android:background + setBackgroundColor：
+  那样会把背景换成纯色 ColorDrawable，Android 12 以下**圆角会消失**
+  （12+ 有系统裁剪才看不出来）。
+  用 ImageView 上色则任何版本都能保留圆角。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!--
+      背景分两层：
+      - widget_bg：纯色圆角矩形，用 setColorFilter 上色（莫奈配色）
+      - widget_bg_image：用户自定义背景图（没选图时 GONE）
+
+      分两层而不是一层，是因为 setColorFilter 和 setImageBitmap 会互相覆盖：
+      同一张 ImageView 上先设图片再上色，颜色会盖住图片；反之图片会盖住颜色。
+      分层之后两者可以共存。
+    -->
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg_rounded"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <ImageView
+        android:id="@+id/widget_bg_image"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="4dp">
+
+        <!-- 标题栏：点标题进 App，点 + 直接新建。
+             标题文字由代码动态设置成「还有 N 项待办」，比显示 App 名字有用。 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="1dp">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/widget_title_default"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/widget_page"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp" />
+
+            <ImageView
+                android:id="@+id/widget_prev"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_prev"
+                android:contentDescription="@string/widget_prev_page" />
+
+            <ImageView
+                android:id="@+id/widget_next"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_next"
+                android:contentDescription="@string/widget_next_page" />
+
+            <ImageView
+                android:id="@+id/widget_refresh"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:padding="5dp"
+                android:src="@drawable/ic_widget_refresh"
+                android:contentDescription="@string/widget_refresh" />
+
+            <ImageView
+                android:id="@+id/widget_add"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:padding="4dp"
+                android:src="@drawable/ic_widget_add"
+                android:contentDescription="@string/widget_add_note" />
+        </LinearLayout>
+
+        <!--
+          分隔线用 ImageView 而不是 <View>：
+          RemoteViews 只允许 @RemoteView 注解过的类，而 android.view.View 本身没有这个注解，
+          用 <View> 会让整个小组件 inflate 失败（真机上表现为加载不出来）。
+          ImageView 是允许的，颜色仍由 setBackgroundColor 设置。
+        -->
+        <ImageView
+            android:id="@+id/widget_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="1dp"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ListView
+                android:id="@+id/widget_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="@null"
+                android:dividerHeight="0dp"
+                android:scrollbars="none"
+                android:paddingBottom="2dp" />
+
+            <TextView
+                android:id="@+id/widget_empty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/widget_empty"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

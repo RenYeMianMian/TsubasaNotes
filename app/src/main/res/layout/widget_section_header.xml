@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  「未完成 / 已完成」分区标题行。
+
+  左边一根短竖条（item_section_bar，用 setColorFilter 上色），
+  中间标题文字，右边一条细线（item_section_line）。
+  竖条和细线都用 ImageView —— RemoteViews 不允许 <View>。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="13dp"
+    android:paddingEnd="11dp"
+    android:paddingTop="6dp"
+    android:paddingBottom="2dp">
+
+    <ImageView
+        android:id="@+id/section_bar"
+        android:layout_width="3dp"
+        android:layout_height="13dp"
+        android:src="@drawable/widget_section_bar"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/section_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingStart="7dp"
+        android:paddingEnd="6dp"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:maxLines="1" />
+
+    <ImageView
+        android:id="@+id/section_line"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1"
+        android:src="@drawable/widget_section_line"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+</LinearLayout>

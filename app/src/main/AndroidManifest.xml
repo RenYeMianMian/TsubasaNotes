@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      自定义背景图用系统的 OpenDocument 选择器（见 NotesApp 的 pickAppBg / pickWidgetBg），
+      它会把用户选中的那一个文件临时授权给我们，所以**不需要任何存储权限**。
+      这里不声明 READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE 是有意的：
+      能少一个权限就少一个，用户也更放心。
+    -->
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Tsubasa">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Tsubasa">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 列表小组件 -->
+        <receiver
+            android:name=".widget.NoteWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tsubasa.notes.ACTION_REFRESH" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/note_widget_info" />
+        </receiver>
+
+        <!-- 快速添加小组件 -->
+        <receiver
+            android:name=".widget.AddNoteWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_add_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/add_note_widget_info" />
+        </receiver>
+
+        <!--
+            集合小组件的适配器。
+            exported 必须是 true：桌面（另一个应用/另一个 UID）要通过 Binder 绑定它来取每一行，
+            exported="false" 会让列表渲染不出来。
+            安全性由 android:permission 保证 —— BIND_REMOTEVIEWS 是 signature 级权限，
+            只有系统/桌面持有，普通应用绑不上。
+            （对照：Glance 自己的 GlanceRemoteViewsService 正是 exported="true" + 该权限。）
+        -->
+        <service
+            android:name=".widget.NoteWidgetService"
+            android:exported="true"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- 壁纸/主题变化时重新取色，让莫奈配色跟上 -->
+        <receiver
+            android:name=".widget.ThemeChangeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.WALLPAPER_CHANGED" />
+                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  一条记事 = 一张圆角卡片（外层 FrameLayout 负责留出间距并画圆角背景）。
+
+  卡片背景由 item_card_bg 这个 ImageView 承载（白色圆角矩形 + setColorFilter 上色），
+  原因同小组件主背景：RemoteViews 里直接 setBackgroundColor 会在 Android 12 以下
+  把圆角冲掉。
+
+  注意：这里不能出现 <View> 标签（RemoteViews 只允许白名单控件），
+  分隔线也用 ImageView。
+
+  == 关于交互方式（改这个布局前先读）==
+  这里**只能做单击**，两个原因：
+
+  1. 拖拽排序做不到。RemoteViews 只有 setOnClick* 这一类点击 API，
+     一个触摸/手势方法都没有（Glance 也一样）。因为小组件跑在桌面进程里，
+     连续触摸事件流无法跨进程实时传递。
+     所以排序用下面的「↑」按钮做单步上移，精细排序回 App 里拖。
+
+  2. **不要加长按菜单**。长按桌面小组件是系统用来「移动 / 重排小组件」的手势，
+     我们的长按回调会和系统行为打架（要么收不到，要么把用户拖拽小组件的操作搅乱）。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <ImageView
+        android:id="@+id/item_card_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_card_bg"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:minHeight="34dp"
+        android:paddingStart="5dp"
+        android:paddingEnd="3dp">
+
+        <ImageView
+            android:id="@+id/item_check"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="3dp"
+            android:src="@drawable/ic_widget_unchecked"
+            android:contentDescription="@string/widget_toggle_done" />
+
+        <TextView
+            android:id="@+id/item_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:paddingStart="6dp"
+            android:paddingEnd="4dp"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textSize="13sp"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <ImageView
+            android:id="@+id/item_up"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_widget_up"
+            android:contentDescription="@string/widget_move_up" />
+
+        <ImageView
+            android:id="@+id/item_delete"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_widget_delete"
+            android:contentDescription="@string/widget_delete" />
+    </LinearLayout>
+</FrameLayout>
