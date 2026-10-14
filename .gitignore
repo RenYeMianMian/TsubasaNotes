@@ -21,3 +21,6 @@ keystore.properties
 *.apk
 *.aab
 *.ap_
+
+# 本地开发笔记（机器相关路径与调试历史，只给自己看）
+DEVELOPMENT.md
