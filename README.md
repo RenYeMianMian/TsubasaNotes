@@ -3,6 +3,8 @@
 一个**以桌面小组件为中心**的安卓记事应用：在桌面上直接查看、勾选、排序记事，配色跟随壁纸（莫奈取色）。
 
 > 应用名：中文 **忆记事** / 英文 **Tsubasa** / 日语 **Tsubasa**；包名 `com.tsubasa.notes`。
+>
+> 仓库：<https://github.com/RenYeMianMian/TsubasaNotes>（MIT License）
 
 ## 为什么这样设计
 
@@ -305,16 +307,21 @@ App 和小组件两个进程各自的缓存可能读到旧值（例如设置里�
 需要 JDK 17、Android SDK（platform 34 + build-tools 34.0.0）、Gradle 8.7。
 
 ```bash
+git clone https://github.com/RenYeMianMian/TsubasaNotes.git
+cd TsubasaNotes
 export JAVA_HOME=/path/to/jdk-17
-export ANDROID_HOME=/path/to/android-sdk
+export ANDROID_HOME=/path/to/android-sdk   # 或者写 local.properties 里的 sdk.dir
 gradle assembleRelease
 ```
 
-产物：`app/build/outputs/apk/release/app-release.apk`
+产物：`app/build/outputs/apk/release/app-release.apk`。
+没有签名密钥时产出的是 `app-release-unsigned.apk`（见下「签名」），
+想直接装机得自己补一份密钥，或者用 `gradle installDebug`。
 
 项目位置：`D:\XLXZ\TsubasaNotes`（原本在 `C:\Users\H\Downloads\MonetNotes`，已迁移）。
 工具链仍在 `C:\Users\H\Downloads\.android-toolchain`，`local.properties` 里的 `sdk.dir`
-是绝对路径，所以迁移后不用改；但换机器时要改。
+是绝对路径，所以迁移后不用改；但换机器时要改 —— 而 `local.properties` 不入库，
+clone 下来的人靠 `ANDROID_HOME` 找 SDK。
 
 `app/build.gradle.kts` 里 Robolectric 的 `robolectric.dependency.dir` **不能写死相对路径**：
 原来写的是 `${rootDir.parentFile}/.android-toolchain/robolectric-deps`，项目一到 D 盘就
@@ -329,12 +336,33 @@ Maven Central 下载 android-all jar（本机不可达）导致测试全挂。�
 见 `settings.gradle.kts` 里的 `mirrors.cloud.tencent.com` 仓库配置 —— 它同时代理了
 Maven Central 和 Google Maven，所以 AGP / AndroidX 都能取到。
 
+### 签名
+
 签名用 `app/tsubasa.keystore`（别名与口令都是 `tsubasa`）。
 这个密钥是**换包名之后重新生成的**：改包名时只重命名了 keystore 文件，
 里面的别名/口令还是旧的 `monetnotes`，打包会直接报
 `keystore password was incorrect`。因为 `applicationId` 已经从 `com.monetnotes`
 变成 `com.tsubasa.notes`，本来就不存在跨包名的升级路径，换密钥没有副作用。
-（旧文件留在 `app/tsubasa.keystore.bak`，仅作存档。）
+
+**但 keystore 与口令不入库**（`.gitignore` 里有 `*.keystore` / `keystore.properties`）。
+理由不是洁癖：口令一旦公开，任何人都能用同一把密钥签一个「版本号更高」的
+更新包，覆盖用户手机上装的正版 App。签名配置因此写成「有就用，没有就跳过」：
+
+| 情况 | 结果 |
+| --- | --- |
+| `app/tsubasa.keystore` 存在，且 `keystore.properties` 有口令 | 正常签名，产出 `app-release.apk` |
+| 两者缺一（例如刚 clone 下来） | **未签名** `app-release-unsigned.apk`，构建不报错 |
+
+口令放在项目根目录的 `keystore.properties`（不入库）：
+
+```properties
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+这样 clone 下来的人没有密钥也能编译、跑测试，只是装不了签名包。
+（旧密钥留在 `app/tsubasa.keystore.bak`，仅作存档，同样不入库。）
 
 ### 运行测试
 
