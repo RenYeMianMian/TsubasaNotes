@@ -9,6 +9,9 @@
 
 **小组件是主界面，App 是它的完整版**。
 
+
+
+<img src="present/主页面.jpg" width="250"/> <img src="present/设置.jpg" width="250"/> <img src="present/小组件.jpg" width="320"/>
 ---
 
 
