@@ -48,5 +48,13 @@ class AddNoteWidgetProvider : AppWidgetProvider() {
             )
             appWidgetManager.updateAppWidget(id, views)
         }
+        // 只装了「快速添加」也算有小组件，同样要跑定时刷新，否则这个按钮的配色
+        // 会一直停在旧主题色上。
+        WidgetRefreshScheduler.sync(context)
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        // 用户可能刚把最后一个「快速添加」也删了；sync 会据此撤掉闹钟。
+        WidgetRefreshScheduler.sync(context)
     }
 }

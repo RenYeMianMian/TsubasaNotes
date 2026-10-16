@@ -29,6 +29,9 @@ class NoteWidgetProvider : AppWidgetProvider() {
             appWidgetManager.updateAppWidget(id, WidgetRenderer.build(context, id))
         }
         appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
+        // 有小组件时才装定时刷新的闹钟。放在这里而不是 Application.onCreate：
+        // 后者每次进程启动都会把计时重置，反而让刷新无限延后。
+        WidgetRefreshScheduler.sync(context)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -43,6 +46,8 @@ class NoteWidgetProvider : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         appWidgetIds.forEach { Prefs.clearWidgetPage(context, it) }
+        // 可能最后一个小组件刚被删掉；sync 会据此撤掉闹钟，不再无谓地唤醒进程。
+        WidgetRefreshScheduler.sync(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {

@@ -24,6 +24,7 @@
 | 标题显示待办数 | 标题栏显示「还有 N 项待办」，而不是 App 名字；全部完成时显示「都做完了 🎉」 |
 | 圆角卡片 | 每条一张卡片，卡片之间留间距，不再挤成一团 |
 | 颜色区分 | 未完成 = 白/亮卡片，已完成 = 灰/暗卡片，一眼分辨 |
+| 自动换色 | 换壁纸后配色会自己跟上，**不需要打开 App**（进程活着时即时生效，否则最多 15 分钟） |
 | 已完成分界线 | 未完成和已完成之间有一条「已完成」标题行；未完成那段不插标题以省空间 |
 | 逐条勾选 | 点左侧圆圈或文字即可切换完成状态，**不用打开 App** |
 | 已完成划线 | 完成项文字变淡并加删除线 |
@@ -46,7 +47,8 @@
 
 > 首次把小组件拖到桌面时如果显示空白，点一下小组件头部的刷新图标即可。
 
-**权限**：不需要任何权限（没有网络、没有存储权限）。
+**权限**：不涉及隐私。只声明了一个 `RECEIVE_BOOT_COMPLETED`（普通权限，用于开机后重刷小组件），
+没有网络权限，也没有任何存储权限。
 
 ---
 
@@ -55,6 +57,8 @@
 ```
 app/src/main/java/com/tsubasa/notes/
 ├── MainActivity.kt              入口；attachBaseContext 里套语言，处理「新建」意图
+├── TsubasaApp.kt                进程启动时补刷小组件 + 订阅壁纸配色
+├── WallpaperWatcher.kt          进程活着时换壁纸立刻重算配色
 ├── L10n.kt                      界面语言：locale 包装（attachBaseContext 用）
 ├── data/
 │   ├── Note.kt                  记事数据模型（JSON 序列化）
@@ -74,6 +78,7 @@ app/src/main/java/com/tsubasa/notes/
     ├── NoteWidgetService.kt     集合小组件的适配器
     ├── NoteWidgetProvider.kt    小组件交互入口（勾选/上移/删除/翻页）
     ├── AddNoteWidgetProvider.kt 「快速添加」小组件
-    └── ThemeChangeReceiver.kt   壁纸/主题变化后重刷
+    ├── WidgetRefreshScheduler.kt 定时刷新闹钟（保证不打开 App 也会换色）
+    └── ThemeChangeReceiver.kt   开机/升级/定时闹钟时重刷
 ```
 
