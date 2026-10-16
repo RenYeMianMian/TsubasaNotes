@@ -8,7 +8,15 @@
       能少一个权限就少一个，用户也更放心。
     -->
 
+    <!--
+      开机后重刷一次小组件（见 widget/ThemeChangeReceiver）。
+      BOOT_COMPLETED 是 protected-broadcast，收它**必须**声明这个权限，
+      少了它接收器会被系统静默跳过 —— 之前就漏了这一条。
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
+        android:name=".TsubasaApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -69,13 +77,23 @@
             android:exported="true"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
-        <!-- 壁纸/主题变化时重新取色，让莫奈配色跟上 -->
+        <!--
+            开机 / 覆盖安装后重刷小组件。
+
+            注意这里**刻意不注册** android.intent.action.WALLPAPER_CHANGED 之外的
+            「配置变化」广播：ACTION_CONFIGURATION_CHANGED 由 AMS 带上
+            FLAG_RECEIVER_REGISTERED_ONLY 发出，清单注册的接收器**永远收不到**，
+            写了只会让人误以为主题变化已经处理好了。
+
+            WALLPAPER_CHANGED 本身在 AOSP 的 API 26+ 上也不会送达（隐式广播，不在
+            framework-sysconfig.xml 的 23 条白名单里），保留它只是为了兼容个别
+            自行放宽限制的厂商 ROM。真正干活的是 WallpaperWatcher（进程内订阅）。
+        -->
         <receiver
             android:name=".widget.ThemeChangeReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.WALLPAPER_CHANGED" />
-                <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
