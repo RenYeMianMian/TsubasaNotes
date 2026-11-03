@@ -157,6 +157,28 @@ object Palette {
         }
     }
 
+    /**
+     * 从种子色取某个「色调」的颜色，是 Material 3 色调板的最小实现。
+     *
+     * M3 的官方做法是在 HCT 空间里按色调取值，这里用 HSL 近似：HSL 的 L 和
+     * M3 的 tone 语义一致（0 = 黑，100 = 白），在中间区域两者差别很小，
+     * 而 HSL 不需要引入 material-color-utilities 那一整个依赖。
+     *
+     * @param tone 0..100
+     * @param chroma 彩度系数。中性色（surface / outline）传小值，
+     *   强调色传 1.0；直接拿种子的饱和度过高，做出来的背景会「发脏」。
+     * @param hueShift 色相偏移，用于派生 tertiary（M3 惯例是 +60°）。
+     */
+    @ColorInt
+    fun tonal(@ColorInt seed: Int, tone: Int, chroma: Float = 1f, hueShift: Float = 0f): Int {
+        val hsl = toHsl(seed)
+        val l = tone.coerceIn(0, 100) / 100f
+        // 极亮/极暗时饱和度会被压扁，否则 98 号色会变成刺眼的粉彩
+        val fade = 1f - (abs(l - 0.5f) * 2f).coerceIn(0f, 1f) * 0.35f
+        val s = (hsl[1] * chroma * fade).coerceIn(0f, 1f)
+        return fromHsl(hsl[0] + hueShift, s, l)
+    }
+
     /** 两个颜色按比例混合，用于做半透明强调色等。 */
     @ColorInt
     fun blend(@ColorInt a: Int, @ColorInt b: Int, ratio: Float): Int {

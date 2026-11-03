@@ -3,10 +3,13 @@ package com.tsubasa.notes
 import android.content.Context
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import com.tsubasa.notes.data.Prefs
 import com.tsubasa.notes.ui.NotesViewModel
 import com.tsubasa.notes.ui.SchemeSource
 import com.tsubasa.notes.ui.UiState
+import com.tsubasa.notes.ui.schemeFromSeed
 import com.tsubasa.notes.ui.schemeSource
 import com.tsubasa.notes.widget.Palette
 import org.junit.Assert.assertEquals
@@ -242,5 +245,55 @@ class AppColorTests {
     fun `同一个种子色在深浅色下推出不同配色`() {
         val seed = Palette.presets.first()
         assertNotEquals(Palette.schemeFrom(seed, true).bg, Palette.schemeFrom(seed, false).bg)
+    }
+
+    // ------------------------------------------------------------ 完整 ColorScheme
+
+    @Test
+    fun `整套配色都跟着种子色走而不是默认紫`() {
+        // 这条盯的是「改了颜色但界面没整体变」。
+        // 以前 schemeFromPalette 只填了 8 项，其余槽位全部落到 M3 默认的紫色基线上，
+        // 所以卡片底色、选中态、分割线永远是紫的。
+        val purple = 0xFF6750A4.toInt()
+        val green = 0xFF3F6833.toInt()
+
+        listOf(true, false).forEach { dark ->
+            val a = schemeFromSeed(purple, dark, Palette.schemeFrom(purple, dark).bg)
+            val b = schemeFromSeed(green, dark, Palette.schemeFrom(green, dark).bg)
+
+            // 这几个槽位以前根本没被赋值，是最直观的回归点
+            assertNotEquals("dark=$dark secondaryContainer 应当跟随种子色", a.secondaryContainer, b.secondaryContainer)
+            assertNotEquals("dark=$dark surfaceContainerLow 应当跟随种子色", a.surfaceContainerLow, b.surfaceContainerLow)
+            assertNotEquals("dark=$dark surfaceContainerHighest 应当跟随种子色", a.surfaceContainerHighest, b.surfaceContainerHighest)
+            assertNotEquals("dark=$dark outline 应当跟随种子色", a.outline, b.outline)
+            assertNotEquals("dark=$dark primaryContainer 应当跟随种子色", a.primaryContainer, b.primaryContainer)
+        }
+    }
+
+    @Test
+    fun `同一套配色里文字与底色不会撞成同色`() {
+        Palette.presets.forEach { seed ->
+            listOf(true, false).forEach { dark ->
+                val s = schemeFromSeed(seed, dark, Palette.schemeFrom(seed, dark).bg)
+                assertTrue("seed=$seed dark=$dark surface 与 onSurface 同色", s.surface != s.onSurface)
+                assertTrue("seed=$seed dark=$dark primary 与 onPrimary 同色", s.primary != s.onPrimary)
+                assertTrue("seed=$seed dark=$dark primary 与 background 同色", s.primary != s.background)
+                assertTrue("seed=$seed dark=$dark surfaceVariant 与 onSurfaceVariant 同色", s.surfaceVariant != s.onSurfaceVariant)
+                // 错误色是语义色，不该跟着种子走
+                assertEquals(
+                    "seed=$seed dark=$dark 错误色被种子色带跑了",
+                    if (dark) 0xFFF2B8B5.toInt() else 0xFFB3261E.toInt(),
+                    s.error.toArgb()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `深色主题的底色确实比浅色深`() {
+        val seed = Palette.presets.first()
+        val darkBg = schemeFromSeed(seed, true, Palette.schemeFrom(seed, true).bg).background
+        val lightBg = schemeFromSeed(seed, false, Palette.schemeFrom(seed, false).bg).background
+        assertTrue("深色底应当比浅色底更暗", darkBg.luminance() < lightBg.luminance())
     }
 }
