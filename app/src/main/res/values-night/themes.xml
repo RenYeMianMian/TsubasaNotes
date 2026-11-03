@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      深色模式下的启动主题。
+
+      之前只有 values/themes.xml，里面 windowLightStatusBar 固定写死 true。
+      深色模式下窗口背景是 #141218（见 values-night/colors_window.xml），
+      而状态栏图标还是被要求画成深色 —— 深色图标画在深色底上，等于看不见。
+      启动的一瞬间（Compose 还没接管系统栏）用户就会看到一排「消失」的图标。
+
+      这里覆盖成 false：深色底配浅色图标。
+      Compose 起来之后由 Theme.kt 的 SideEffect 继续按实际主题维护，两者一致。
+    -->
+    <style name="Theme.Tsubasa" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

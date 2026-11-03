@@ -27,11 +27,11 @@
     <string name="action_clear_done">完了を削除</string>
     <string name="action_sort_done">完了を下へ</string>
     <string name="action_select">選択</string>
-    <string name="action_done_select">完了</string>
     <string name="action_search">検索</string>
     <string name="action_mark_done">完了にする</string>
     <string name="action_mark_undo">未完了に戻す</string>
     <string name="action_select_all">すべて選択</string>
+    <string name="action_more">その他</string>
     <string name="search_hint">メモを検索</string>
 
     <string name="tab_all">すべて</string>

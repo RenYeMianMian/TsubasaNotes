@@ -15,8 +15,10 @@
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <!-- 浅色底下导航栏图标也要是深色，否则白色图标画在浅色底上同样看不见 -->
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
         <!-- 让系统栏背景由我们绘制，避免系统再糊一层不透明色 -->
-        <item name="android:windowDrawsSystemBarBackgrounds" tools:targetApi="lollipop">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>

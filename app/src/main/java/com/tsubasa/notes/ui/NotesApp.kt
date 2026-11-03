@@ -3,9 +3,28 @@ package com.tsubasa.notes.ui
 import android.app.Activity
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,8 +55,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -45,17 +67,18 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
@@ -66,10 +89,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -79,27 +108,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.launch
 import com.tsubasa.notes.L10n
 import com.tsubasa.notes.R
 import com.tsubasa.notes.data.Note
@@ -111,6 +150,20 @@ import kotlin.math.roundToInt
 private val CARD_HEIGHT = 56.dp
 private val CARD_GAP = 8.dp
 private val CARD_RADIUS = 16.dp
+
+/**
+ * 列表区的动画目标。
+ *
+ * 只把 `items.isEmpty()` 当目标时，「换页 / 换标签」不会触发任何过渡，
+ * 内容会原地瞬间替换。把筛选和页码一起放进来，才能判断是
+ * 「空态切换」还是「翻页」，进而选不同的过渡。
+ */
+private data class ListTarget(
+    val loading: Boolean,
+    val empty: Boolean,
+    val filter: Filter,
+    val page: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +177,9 @@ fun NotesApp(vm: NotesViewModel) {
     var editing by remember { mutableStateOf<Note?>(null) }
 
     val focusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // 小组件点「+」进来：聚焦输入框
     LaunchedEffect(focusSignal) {
@@ -137,36 +193,91 @@ fun NotesApp(vm: NotesViewModel) {
     val pages = vm.pageCount(state)
     val canReorder = vm.canReorder(state)
 
+    // 系统返回键的优先级：先退出搜索，再退出多选，最后才真的退出 App。
+    // 以前这里完全没有拦截，搜索状态下按返回会直接退出应用，
+    // 是用户最容易撞上、也最容易觉得「这软件有 bug」的一处。
+    BackHandler(enabled = searchMode || state.selecting) {
+        if (searchMode) {
+            searchMode = false
+            vm.setQuery("")
+        } else {
+            vm.clearSelection()
+        }
+    }
+
     Scaffold(
         // 背景由 MainActivity 铺在 NotesApp 下面（可能是用户自选图片或主题色），
         // 所以 Scaffold 必须透明，否则它那层实色会把背景整个盖掉。
         containerColor = Color.Transparent,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             // 栏本身透明：模糊已经在 MainActivity 里**整屏**做过了，
             // 这里只要不盖住背景，壁纸/磨砂就会从底下透上来。
             // （之前是每个栏各自糊一遍，导致中间那段没被糊到，见 README。）
-            if (state.selecting) {
-                SelectionBar(
-                    count = state.selected.size,
-                    onCancel = { vm.clearSelection() },
-                    onSelectAll = { vm.selectAll() },
-                    onDone = { vm.setDoneSelected(true) },
-                    onUndo = { vm.setDoneSelected(false) },
-                    onDelete = { vm.deleteSelected() }
-                )
-            } else {
-                TopBar(
-                    searchMode = searchMode,
-                    query = state.query,
-                    onQuery = { vm.setQuery(it) },
-                    onToggleSearch = {
-                        searchMode = !searchMode
-                        if (!searchMode) vm.setQuery("")
-                    },
-                    onSelect = { vm.selectAll() },
-                    onSettings = { showSettings = true },
-                    onSortDone = { vm.sortDoneToBottom() }
-                )
+            // 普通栏和多选栏之间淡入淡出：两者高度相同，直接替换会「啪」地闪一下，
+            // 进入多选时视觉上很突兀。
+            AnimatedContent(
+                targetState = state.selecting,
+                transitionSpec = {
+                    (fadeIn(tween(180)) + slideInVertically(tween(180)) { -it / 6 })
+                        .togetherWith(fadeOut(tween(120)))
+                },
+                label = "topBar"
+            ) { selecting ->
+                if (selecting) {
+                    SelectionBar(
+                        count = state.selected.size,
+                        onCancel = { vm.clearSelection() },
+                        onSelectAll = { vm.selectAll() },
+                        onDone = { vm.setDoneSelected(true) },
+                        onUndo = { vm.setDoneSelected(false) },
+                        onDelete = {
+                            // 删除直接改文件、没有任何确认框。以前误删就彻底没了，
+                            // 现在先留一份快照，再用 Snackbar 给一次反悔机会。
+                            val snapshot = vm.notesSnapshot()
+                            vm.deleteSelected()
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.deleted_toast),
+                                    actionLabel = context.getString(R.string.undo),
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    vm.restore(snapshot)
+                                }
+                            }
+                        }
+                    )
+                } else {
+                    TopBar(
+                        searchMode = searchMode,
+                        query = state.query,
+                        onQuery = { vm.setQuery(it) },
+                        onToggleSearch = {
+                            searchMode = !searchMode
+                            if (!searchMode) vm.setQuery("")
+                        },
+                        onSelect = { vm.selectAll() },
+                        onSettings = { showSettings = true },
+                        onSortDone = { vm.sortDoneToBottom() },
+                        onClearDone = {
+                            // 「清除已完成」以前只存在于数据层，界面上根本点不到。
+                            // 现在接进溢出菜单，并且和批量删除一样给一次撤销机会。
+                            val snapshot = vm.notesSnapshot()
+                            vm.clearDone()
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.deleted_toast),
+                                    actionLabel = context.getString(R.string.undo),
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    vm.restore(snapshot)
+                                }
+                            }
+                        }
+                    )
+                }
             }
         },
         bottomBar = {
@@ -194,29 +305,77 @@ fun NotesApp(vm: NotesViewModel) {
             )
 
             Box(modifier = Modifier.weight(1f)) {
-                if (items.isEmpty()) {
-                    EmptyState(
-                        text = if (state.query.isNotBlank())
-                            stringResource(R.string.search_no_match, state.query)
-                        else stringResource(R.string.empty_list)
-                    )
-                } else {
-                    NoteList(
-                        rows = rows,
-                        canReorder = canReorder,
-                        selected = state.selected,
-                        selecting = state.selecting,
-                        onToggle = { vm.toggle(it) },
-                        onEdit = { editing = it },
-                        onSelect = { vm.toggleSelect(it) },
-                        onLongPress = { vm.toggleSelect(it) },
-                        onDrag = { f, t -> vm.dragReorder(f, t) },
-                        onDragEnd = { vm.commitReorder() }
-                    )
+                // 列表 / 空态 / 换页 / 换标签都用同一段过渡：
+                //  · 空↔非空：淡入 + 轻微放大（删掉最后一条时不再硬跳一帧）
+                //  · 换页、换标签：按方向左右滑一小段再淡入，让人看得出「翻过去了」
+                AnimatedContent(
+                    targetState = ListTarget(
+                        // 冷启动时 loading=true、notes 还是空的。以前这里直接用
+                        // items.isEmpty() 判断，于是「还没有记事」的空态会先闪一下，
+                        // 数据读完之后才被列表替换掉 —— 每次打开都像丢过一次数据。
+                        // 加载期间单独一档：先留白，读完再决定显示列表还是空态。
+                        loading = state.loading,
+                        empty = items.isEmpty() && !state.loading,
+                        filter = state.filter,
+                        page = state.page
+                    ),
+                    transitionSpec = {
+                        val sameShape = initialState.empty == targetState.empty
+                        if (initialState.loading || targetState.loading) {
+                            // 首屏加载结束：只淡入，不要左右滑 —— 用户还没做过任何操作
+                            fadeIn(tween(220)).togetherWith(fadeOut(tween(120)))
+                        } else if (sameShape) {
+                            // 前进（页码变大 / 标签往后）从右侧进来，后退反之。
+                            val forward = targetState.page > initialState.page ||
+                                (targetState.page == initialState.page &&
+                                    targetState.filter.ordinal > initialState.filter.ordinal)
+                            val dir = if (forward) 1 else -1
+                            (slideInHorizontally(tween(220)) { w -> dir * w / 5 } + fadeIn(tween(220)))
+                                .togetherWith(
+                                    slideOutHorizontally(tween(180)) { w -> -dir * w / 5 } +
+                                        fadeOut(tween(160))
+                                )
+                        } else {
+                            (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.96f))
+                                .togetherWith(fadeOut(tween(140)))
+                        }
+                    },
+                    label = "listState"
+                ) { target ->
+                    if (target.loading) {
+                        // 读数据的那几十毫秒什么都不画，避免「空态闪一下」
+                        Box(Modifier.fillMaxSize())
+                    } else if (target.empty) {
+                        EmptyState(
+                            text = if (state.query.isNotBlank())
+                                stringResource(R.string.search_no_match, state.query)
+                            else stringResource(R.string.empty_list),
+                            searching = state.query.isNotBlank()
+                        )
+                    } else {
+                        NoteList(
+                            rows = rows,
+                            canReorder = canReorder,
+                            selected = state.selected,
+                            selecting = state.selecting,
+                            onToggle = { vm.toggle(it) },
+                            onEdit = { editing = it },
+                            onSelect = { vm.toggleSelect(it) },
+                            onLongPress = { vm.toggleSelect(it) },
+                            onDrag = { f, t -> vm.dragReorder(f, t) },
+                            onDragEnd = { vm.commitReorder() }
+                        )
+                    }
                 }
             }
 
-            if (pages > 1) {
+            // 分页条只在需要时出现，用展开/收起动画，
+            // 否则条数刚好跨过一页时底部会突然多出一条、把列表顶上去。
+            AnimatedVisibility(
+                visible = pages > 1,
+                enter = expandVertically(tween(200)) + fadeIn(tween(200)),
+                exit = shrinkVertically(tween(160)) + fadeOut(tween(120))
+            ) {
                 PaginationBar(
                     page = state.page,
                     pages = pages,
@@ -258,9 +417,21 @@ private fun TopBar(
     onToggleSearch: () -> Unit,
     onSelect: () -> Unit,
     onSettings: () -> Unit,
-    onSortDone: () -> Unit
+    onSortDone: () -> Unit,
+    onClearDone: () -> Unit
 ) {
     // 顶栏透明，壁纸从底下透上来；模糊由 MainActivity 整屏统一负责
+    var menuOpen by remember { mutableStateOf(false) }
+
+    // 进入搜索时自动聚焦并弹键盘。
+    // 以前点放大镜只是把标题换成输入框，还得再点一下输入框才能打字 ——
+    // 多这一步会让人以为「搜索没反应」。
+    val searchFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(searchMode) {
+        if (searchMode) runCatching { searchFocus.requestFocus() }
+    }
+
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Transparent,
@@ -275,7 +446,12 @@ private fun TopBar(
                     onValueChange = onQuery,
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.search_hint)) },
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(24.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(searchFocus)
                 )
             } else {
                 Text(
@@ -287,23 +463,60 @@ private fun TopBar(
         navigationIcon = {
             if (searchMode) {
                 IconButton(onClick = onToggleSearch) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.action_cancel))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_cancel)
+                    )
                 }
             }
         },
         actions = {
             if (!searchMode) {
-                IconButton(onClick = onSortDone) {
-                    Icon(Icons.Default.Sort, contentDescription = stringResource(R.string.action_sort_done))
+                // MD3 的顶栏最多放 3 个操作位。以前这里挤了 4 个图标
+                // （排序 / 多选 / 搜索 / 设置），小屏上又窄又容易点错，
+                // 现在只留最常用的两个，其余收进溢出菜单。
+                IconButton(onClick = onToggleSearch) {
+                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
                 }
                 IconButton(onClick = onSelect) {
                     Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.action_select))
                 }
-                IconButton(onClick = onToggleSearch) {
-                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.action_search))
-                }
-                IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.action_settings))
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.action_more)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_sort_done)) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onSortDone()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_clear_done)) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onClearDone()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_settings)) },
+                            leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                            onClick = {
+                                menuOpen = false
+                                onSettings()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -347,7 +560,8 @@ private fun SelectionBar(
     )
 }
 
-// ------------------------------------------------------------------ 绛涢€?
+// ------------------------------------------------------------------ 筛选
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterTabs(filter: Filter, onFilter: (Filter) -> Unit) {
@@ -359,7 +573,20 @@ private fun FilterTabs(filter: Filter, onFilter: (Filter) -> Unit) {
     TabRow(
         selectedTabIndex = tabs.indexOfFirst { it.first == filter }.coerceAtLeast(0),
         // 透明：这一条也在「整屏模糊」的范围里，盖住背景就会露出一块没糊的实色
-        containerColor = Color.Transparent
+        containerColor = Color.Transparent,
+        // M3 的指示器本来就会跟着选中项滑动，这里只是把两端收窄，
+        // 让它看起来像「标签下划线」而不是整条分割线。
+        indicator = { tabPositions ->
+            val index = tabs.indexOfFirst { it.first == filter }.coerceAtLeast(0)
+            if (index in tabPositions.indices) {
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier
+                        .tabIndicatorOffset(tabPositions[index])
+                        .padding(horizontal = 24.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     ) {
         tabs.forEach { (f, label) ->
             Tab(
@@ -373,6 +600,7 @@ private fun FilterTabs(filter: Filter, onFilter: (Filter) -> Unit) {
 
 // ------------------------------------------------------------------ 列表
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NoteList(
     rows: List<ListRow>,
@@ -391,7 +619,7 @@ private fun NoteList(
     // 拖拽状态。用 id 而不是下标作为「正在拖谁」的标识：
     // 重排会让下标变化，用下标会导致手势被中断。
     var draggingId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableStateOf(0f) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
 
     // 手势回调里需要读到最新的列表，用 rememberUpdatedState 避免闭包过期，
     // 同时又不重启 pointerInput（重启会打断拖拽）。
@@ -416,7 +644,13 @@ private fun NoteList(
             }
         }) { _, row ->
             when (row) {
-                is ListRow.Section -> SectionHeader(row)
+                is ListRow.Section -> SectionHeader(
+                    row = row,
+                    // 拖拽换位时标题也要跟着走，否则会看到卡片从标题底下穿过去
+                    modifier = Modifier.animateItemPlacement(
+                        spring(stiffness = Spring.StiffnessMediumLow)
+                    )
+                )
 
                 is ListRow.Item -> {
                     val note = row.note
@@ -472,6 +706,14 @@ private fun NoteList(
                         canReorder = canReorder,
                         handleModifier = handleModifier,
                         modifier = Modifier
+                            // 让其它行在换位时平滑滑过去，而不是瞬间跳一格。
+                            // 被拖的那一行不参与，否则会和手指的 translationY 打架。
+                            .then(
+                                if (isDragging) Modifier
+                                else Modifier.animateItemPlacement(
+                                    spring(stiffness = Spring.StiffnessMediumLow)
+                                )
+                            )
                             .zIndex(if (isDragging) 1f else 0f)
                             .graphicsLayer {
                                 if (isDragging) {
@@ -498,12 +740,12 @@ private fun NoteList(
  * 未完成用强调色，已完成用弱化色 —— 一眼就能看出「这条线以下都是做完的」。
  */
 @Composable
-private fun SectionHeader(row: ListRow.Section) {
+private fun SectionHeader(row: ListRow.Section, modifier: Modifier = Modifier) {
     val color = if (row.done) MaterialTheme.colorScheme.onSurfaceVariant
     else MaterialTheme.colorScheme.primary
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -536,6 +778,10 @@ private fun SectionHeader(row: ListRow.Section) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+// 这里有两个 Modifier 参数：一个是整行的，一个是只给拖拽手柄的。
+// lint 的 ModifierParameter 规则要求 Modifier 参数叫 modifier，但第二个是
+// 手柄专用的手势修饰符，改成 modifier 反而看不出它挂在哪 —— 显式压制。
+@Suppress("ModifierParameter")
 private fun NoteRow(
     note: Note,
     isSelected: Boolean,
@@ -636,16 +882,40 @@ private fun NoteRow(
         }
     }
 
+    // 按下时轻微缩小：M3 的状态层反馈，让点击有实感。
+    // 用 spring 而不是 tween，松手回弹更自然，不会「一顿」。
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.985f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "pressScale"
+    )
+
     Card(
         shape = RoundedCornerShape(CARD_RADIUS),
         colors = CardDefaults.cardColors(containerColor = cardColor),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (note.done) 0.dp else 1.dp
+            defaultElevation = when {
+                isSelected -> 2.dp
+                note.done -> 0.dp
+                else -> 1.dp
+            },
+            pressedElevation = 1.dp
         ),
         modifier = modifier
             .fillMaxWidth()
             .height(CARD_HEIGHT)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
             .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
                 onClick = { if (selecting) onSelect() else onEdit() },
                 onLongClick = { onLongPress() }
             )
@@ -718,7 +988,10 @@ private fun PaginationBar(
         horizontalArrangement = Arrangement.Center
     ) {
         IconButton(onClick = { onPage(page - 1) }, enabled = page > 0) {
-            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = stringResource(R.string.widget_prev_page))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.widget_prev_page)
+            )
         }
         Text(
             text = stringResource(R.string.page_indicator, from, to, total, page + 1, pages),
@@ -726,21 +999,41 @@ private fun PaginationBar(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         IconButton(onClick = { onPage(page + 1) }, enabled = page < pages - 1) {
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = stringResource(R.string.widget_next_page))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.widget_next_page)
+            )
         }
     }
 }
 
+/**
+ * 空态。
+ *
+ * 以前只有一行灰字，看起来像「内容加载失败」而不是「这里本来就空」。
+ * 加一个低饱和的图标之后，空态才读得出是「还没写」而不是「坏了」。
+ */
 @Composable
-private fun EmptyState(text: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+private fun EmptyState(text: String, searching: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
+        Icon(
+            imageVector = if (searching) Icons.Default.SearchOff else Icons.Default.EditNote,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+            modifier = Modifier.size(44.dp)
+        )
+        Spacer(Modifier.height(12.dp))
         Text(
             text = text,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -752,20 +1045,37 @@ private fun EditDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    var text by remember { mutableStateOf(note.text) }
+    var field by remember {
+        // 打开就聚焦并把整段文字选中：改一条记事时直接打字就能整体替换，
+        // 不用先手动全选。（之前注释写着「全选」，但实际只做了聚焦。）
+        mutableStateOf(TextFieldValue(note.text, TextRange(0, note.text.length)))
+    }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        runCatching { focusRequester.requestFocus() }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.edit_note)) },
         text = {
             OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
+                value = field,
+                onValueChange = { field = it },
                 minLines = 3,
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(12.dp),
+                // 弹窗里的输入框以前没有 IME 动作，改完只能伸手去点「保存」。
+                // 现在动作键是「完成」，按下直接保存。
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave(field.text) }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
             )
         },
         confirmButton = {
-            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.action_save)) }
+            TextButton(onClick = { onSave(field.text) }) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
@@ -784,21 +1094,23 @@ private fun SettingsSheet(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var widgetPageSize by remember { mutableStateOf(Prefs.widgetPageSize(context).toFloat()) }
-    var appPageSize by remember { mutableStateOf(Prefs.appPageSize(context).toFloat()) }
+    // 数值类状态用 mutableFloatStateOf / mutableIntStateOf：滑杆每帧都在改值，
+    // 用 mutableStateOf(Float) 会每帧自动装箱一次。
+    var widgetPageSize by remember { mutableFloatStateOf(Prefs.widgetPageSize(context).toFloat()) }
+    var appPageSize by remember { mutableFloatStateOf(Prefs.appPageSize(context).toFloat()) }
     var showDone by remember { mutableStateOf(Prefs.widgetShowDone(context)) }
     var widgetTheme by remember { mutableStateOf(Prefs.widgetTheme(context)) }
     var appTheme by remember { mutableStateOf(Prefs.appTheme(context)) }
-    var seed by remember { mutableStateOf(Prefs.widgetSeed(context)) }
+    var seed by remember { mutableIntStateOf(Prefs.widgetSeed(context)) }
     var groupDone by remember { mutableStateOf(Prefs.groupDone(context)) }
 
     // App 自己的配色（和小组件配色互相独立，改这边不会动到桌面上的小组件）
     var appColor by remember { mutableStateOf(Prefs.appColor(context)) }
-    var appSeedColor by remember { mutableStateOf(Prefs.appSeed(context)) }
+    var appSeedColor by remember { mutableIntStateOf(Prefs.appSeed(context)) }
 
     // 本轮新增的外观项
-    var bgOpacity by remember { mutableStateOf(Prefs.widgetBgOpacity(context).toFloat()) }
-    var barBlur by remember { mutableStateOf(Prefs.backdropBlur(context).toFloat()) }
+    var bgOpacity by remember { mutableFloatStateOf(Prefs.widgetBgOpacity(context).toFloat()) }
+    var barBlur by remember { mutableFloatStateOf(Prefs.backdropBlur(context).toFloat()) }
     var appBg by remember { mutableStateOf(Prefs.appBgImage(context)) }
     var widgetBg by remember { mutableStateOf(Prefs.widgetBgImage(context)) }
 
@@ -846,18 +1158,13 @@ private fun SettingsSheet(
         ) {
             Text(
                 stringResource(R.string.settings_title),
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
 
             // ---- 自定义背景
-            Text(
-                stringResource(R.string.settings_background),
-                fontWeight = FontWeight.Medium,
-                fontSize = 15.sp
-            )
-            Spacer(Modifier.height(8.dp))
+            SettingsSection(stringResource(R.string.settings_background))
 
             BackgroundRow(
                 label = stringResource(R.string.settings_app_bg),
@@ -897,7 +1204,7 @@ private fun SettingsSheet(
                 steps = 19
             )
 
-            Divider(Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
             // ---- 小组件每页条数
             SettingLabel(stringResource(R.string.settings_page_size_widget), widgetPageSize.toInt().toString())
@@ -910,8 +1217,17 @@ private fun SettingsSheet(
             )
 
             // ---- 小组件是否显示已完成
+            // 整行都能点：只有开关本体可点的话，命中区域太小，
+            // 手指稍微偏一点就没反应（M3 的 ListItem 也是整行可点）。
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        showDone = !showDone
+                        vm.setWidgetShowDone(showDone)
+                    }
+                    .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -919,33 +1235,29 @@ private fun SettingsSheet(
                     modifier = Modifier.weight(1f),
                     fontSize = 15.sp
                 )
-                Switch(
-                    checked = showDone,
-                    onCheckedChange = {
-                        showDone = it
-                        vm.setWidgetShowDone(it)
-                    }
-                )
+                // onCheckedChange = null：点击交给整行处理，
+                // 否则点开关会同时触发开关和行，等于连按两下、状态不翻转。
+                Switch(checked = showDone, onCheckedChange = null)
             }
 
             // ---- 已完成是否沉底分组
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        groupDone = !groupDone
+                        vm.setGroupDone(groupDone)
+                    }
+                    .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.settings_group_done),
-                        fontSize = 15.sp
-                    )
-                }
-                Switch(
-                    checked = groupDone,
-                    onCheckedChange = {
-                        groupDone = it
-                        vm.setGroupDone(it)
-                    }
+                Text(
+                    stringResource(R.string.settings_group_done),
+                    modifier = Modifier.weight(1f),
+                    fontSize = 15.sp
                 )
+                Switch(checked = groupDone, onCheckedChange = null)
             }
 
             // ---- 小组件背景不透明度
@@ -961,11 +1273,10 @@ private fun SettingsSheet(
                 steps = 19
             )
 
-            Divider(Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
             // ---- 小组件配色
-            Text(stringResource(R.string.settings_widget_theme), fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Spacer(Modifier.height(8.dp))
+            SettingsSection(stringResource(R.string.settings_widget_theme))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = widgetTheme == "system",
@@ -1060,7 +1371,7 @@ private fun SettingsSheet(
                 }
             }
 
-            Divider(Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
             // ---- 应用内每页条数
             SettingLabel(stringResource(R.string.settings_page_size_app), appPageSize.toInt().toString())
@@ -1073,8 +1384,7 @@ private fun SettingsSheet(
             )
 
             // ---- 应用外观
-            Text(stringResource(R.string.settings_app_theme), fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Spacer(Modifier.height(8.dp))
+            SettingsSection(stringResource(R.string.settings_app_theme))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     "system" to stringResource(R.string.settings_theme_system_short),
@@ -1150,8 +1460,7 @@ private fun SettingsSheet(
 
             // ---- 语言
             Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.settings_language), fontWeight = FontWeight.Medium, fontSize = 15.sp)
-            Spacer(Modifier.height(8.dp))
+            SettingsSection(stringResource(R.string.settings_language))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 L10n.TAGS.forEach { tag ->
                     FilterChip(
@@ -1178,6 +1487,24 @@ private fun SettingsSheet(
             )
         }
     }
+}
+
+/**
+ * 设置页的小节标题。
+ *
+ * M3 里这种分组标题用 labelLarge 那种小号字、主题色，比正文再大一号的
+ * 15sp 黑字更能体现层级 —— 原来的写法所有文字一样重，整页看起来是平的。
+ */
+@Composable
+private fun SettingsSection(title: String) {
+    Spacer(Modifier.height(18.dp))
+    Text(
+        text = title,
+        color = MaterialTheme.colorScheme.primary,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Medium
+    )
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable

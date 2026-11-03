@@ -27,11 +27,11 @@
     <string name="action_clear_done">Clear done</string>
     <string name="action_sort_done">Move done to bottom</string>
     <string name="action_select">Select</string>
-    <string name="action_done_select">Done</string>
     <string name="action_search">Search</string>
     <string name="action_mark_done">Mark as done</string>
     <string name="action_mark_undo">Mark as not done</string>
     <string name="action_select_all">Select all</string>
+    <string name="action_more">More</string>
     <string name="search_hint">Search notes</string>
 
     <string name="tab_all">All</string>

@@ -27,11 +27,11 @@
     <string name="action_clear_done">清除已完成</string>
     <string name="action_sort_done">已完成沉底</string>
     <string name="action_select">多选</string>
-    <string name="action_done_select">完成</string>
     <string name="action_search">搜索</string>
     <string name="action_mark_done">标记完成</string>
     <string name="action_mark_undo">标记未完成</string>
     <string name="action_select_all">全选</string>
+    <string name="action_more">更多</string>
     <string name="search_hint">搜索记事</string>
 
     <string name="tab_all">全部</string>
