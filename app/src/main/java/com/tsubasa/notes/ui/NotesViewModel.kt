@@ -92,27 +92,56 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refresh() {
         viewModelScope.launch {
-            val notes = withContext(Dispatchers.IO) { Repo.all(getApplication()) }
-            val size = Prefs.appPageSize(getApplication())
-            val group = Prefs.groupDone(getApplication())
-            val appBg = Prefs.appBgImage(getApplication())
-            val blur = Prefs.backdropBlur(getApplication())
-            val appColor = Prefs.appColor(getApplication())
-            val appSeed = Prefs.appSeed(getApplication())
-            val appTheme = Prefs.appTheme(getApplication())
-            _state.value = _state.value.copy(
-                notes = notes,
-                pageSize = size,
-                groupDone = group,
-                appBgImage = appBg,
-                barBlur = blur,
-                appColor = appColor,
-                appSeed = appSeed,
-                appTheme = appTheme,
+            // 读文件要 IO 线程；读 SharedPreferences 同样要 —— 它是磁盘访问，
+            // 每次 commit() 之后第一次读还可能等文件锁。以前只有 Repo.all 挪到了
+            // IO，后面七个 Prefs 读全留在主线程上，文件监听触发得频繁时能明显掉帧。
+            val snapshot = withContext(Dispatchers.IO) {
+                val app = getApplication<Application>()
+                Snapshot(
+                    notes = Repo.all(app),
+                    pageSize = Prefs.appPageSize(app),
+                    groupDone = Prefs.groupDone(app),
+                    appBgImage = Prefs.appBgImage(app),
+                    barBlur = Prefs.backdropBlur(app),
+                    appColor = Prefs.appColor(app),
+                    appSeed = Prefs.appSeed(app),
+                    appTheme = Prefs.appTheme(app)
+                )
+            }
+            val next = _state.value.copy(
+                notes = snapshot.notes,
+                pageSize = snapshot.pageSize,
+                groupDone = snapshot.groupDone,
+                appBgImage = snapshot.appBgImage,
+                barBlur = snapshot.barBlur,
+                appColor = snapshot.appColor,
+                appSeed = snapshot.appSeed,
+                appTheme = snapshot.appTheme,
                 loading = false
             )
+            // 数据变少时（删掉最后几条、切了筛选、搜索）当前页可能已经越界，
+            // 那样列表会是空的，但分页条还显示「第 3/3 页」—— 看起来像记事全丢了。
+            _state.value = next.copy(page = clampPage(next))
         }
     }
+
+    /** 把 [s] 的页码夹到合法范围内。 */
+    private fun clampPage(s: UiState): Int {
+        val max = pageCount(s) - 1
+        return s.page.coerceIn(0, if (max < 0) 0 else max)
+    }
+
+    /** [refresh] 一次要读的一批值，避免在协程里跨线程零散读。 */
+    private data class Snapshot(
+        val notes: List<Note>,
+        val pageSize: Int,
+        val groupDone: Boolean,
+        val appBgImage: String,
+        val barBlur: Int,
+        val appColor: String,
+        val appSeed: Int,
+        val appTheme: String
+    )
 
     /**
      * 过滤 + 搜索 + 分组之后的结果（分页前）。
@@ -195,7 +224,9 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setQuery(q: String) = update { it.copy(query = q, page = 0) }
 
-    fun setPage(p: Int) = update { it.copy(page = p.coerceAtLeast(0)) }
+    fun setPage(p: Int) = update { s ->
+        s.copy(page = p.coerceIn(0, (pageCount(s) - 1).coerceAtLeast(0)))
+    }
 
     fun add(text: String) {
         if (text.isBlank()) return
@@ -260,17 +291,27 @@ class NotesViewModel(app: Application) : AndroidViewModel(app) {
         s.copy(selected = all, selecting = all.isNotEmpty())
     }
 
+    /** 删除前的整份列表快照，供「撤销」用。 */
+    fun notesSnapshot(): List<Note> = _state.value.notes
+
+    fun restore(snapshot: List<Note>) {
+        if (snapshot.isEmpty()) return
+        io { Repo.restore(getApplication(), snapshot) }
+    }
+
     fun deleteSelected() {
         val ids = _state.value.selected
         if (ids.isEmpty()) return
-        io { ids.forEach { Repo.delete(getApplication(), it) } }
+        // 合成一次读+写+广播。逐条删时每条都要重写整个文件并广播一次，
+        // 选 50 条就是 50 次全量落盘，小组件会被重绘 50 遍。
+        io { Repo.deleteAll(getApplication(), ids) }
         clearSelection()
     }
 
     fun setDoneSelected(done: Boolean) {
         val ids = _state.value.selected
         if (ids.isEmpty()) return
-        io { ids.forEach { Repo.setDone(getApplication(), it, done) } }
+        io { Repo.setDoneAll(getApplication(), ids, done) }
         clearSelection()
     }
 

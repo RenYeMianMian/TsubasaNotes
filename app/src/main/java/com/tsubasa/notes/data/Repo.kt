@@ -62,20 +62,51 @@ object Repo {
         val payload = JSONObject().put(KEY_NOTES, arr).toString()
         val tmp = File(f.parentFile, "$FILE_NAME.tmp")
         try {
+            // 覆盖之前先看一眼旧文件还能不能解析。读不出来就说明它已经损坏，
+            // 这时候直接写会把用户仅剩的数据彻底抹掉 —— 先留一份 .corrupt 备份。
+            backupIfCorrupt(f)
+
             tmp.writeText(payload)
-            if (f.exists() && !f.delete()) {
-                Log.w(TAG, "删除旧文件失败，改为直接覆盖")
-                f.writeText(payload)
-                tmp.delete()
-                return
+
+            // 先直接 rename：POSIX 的 rename(2) 会原子地替换已存在的目标文件。
+            // 以前这里是「先 delete 再 rename」，中间存在一个文件不存在的窗口，
+            // 小组件进程恰好在这个窗口里读就会拿到空列表，界面闪一下空白。
+            if (tmp.renameTo(f)) return
+
+            // rename 失败（少见，比如跨挂载点）时才退化为删掉再改名。
+            if (f.exists() && f.delete()) {
+                if (tmp.renameTo(f)) return
             }
-            if (!tmp.renameTo(f)) {
-                // rename 失败（少见）时退化为直接写
-                f.writeText(payload)
-                tmp.delete()
-            }
+            // 最后兜底：直接覆盖写。
+            f.writeText(payload)
+            tmp.delete()
         } catch (t: Throwable) {
             Log.e(TAG, "写入记事失败", t)
+        }
+    }
+
+    /**
+     * 旧文件解析不了时，先把它备份成 notes.json.corrupt。
+     *
+     * 不备份的话，[readFile] 的「解析失败回退为空列表」会连累下一次写入：
+     * 用户看到的是「记事全没了」，再随便点一下勾选，空列表就被写回磁盘，
+     * 真正的内容永远找不回来了。
+     */
+    private fun backupIfCorrupt(f: File) {
+        if (!f.exists() || f.length() == 0L) return
+        val parseable = try {
+            val text = f.readText()
+            text.isBlank() || JSONObject(text).has(KEY_NOTES)
+        } catch (_: Throwable) {
+            false
+        }
+        if (parseable) return
+        val backup = File(f.parentFile, "$FILE_NAME.corrupt")
+        try {
+            f.copyTo(backup, overwrite = true)
+            Log.w(TAG, "数据文件损坏，已备份到 ${backup.name}")
+        } catch (t: Throwable) {
+            Log.w(TAG, "备份损坏的数据文件失败", t)
         }
     }
 
@@ -116,12 +147,64 @@ object Repo {
     }
 
     fun toggleDone(context: Context, id: String) {
-        val cur = all(context).firstOrNull { it.id == id } ?: return
-        setDone(context, id, !cur.done)
+        // 以前是「先 all() 读一次拿到当前状态，再 setDone() 写一次」——
+        // 两次操作各自加锁，中间没有任何保护。App 和小组件同时点同一条时，
+        // 两次读到的都是「未完成」，结果两次都写成「已完成」，勾选看起来丢了。
+        // 现在读和写在同一次 mutate 里完成。
+        mutate(context) { list ->
+            val i = list.indexOfFirst { it.id == id }
+            if (i >= 0) {
+                list[i] = list[i].copy(done = !list[i].done, updatedAt = System.currentTimeMillis())
+            }
+        }
     }
 
     fun delete(context: Context, id: String) {
         mutate(context) { list -> list.removeAll { it.id == id } }
+    }
+
+    /**
+     * 把一份快照里「现在不见了」的记事按原来的位置插回去。
+     *
+     * 删除操作本身是不可逆的（直接改文件），但误删是很容易发生的：
+     * 多选模式下点一下垃圾桶，整批就没了。这里配合 UI 的 Snackbar「撤销」，
+     * 让用户有一次反悔的机会 —— 位置也尽量还原，不会把刚整理好的顺序打乱。
+     */
+    fun restore(context: Context, snapshot: List<Note>) {
+        if (snapshot.isEmpty()) return
+        mutate(context) { list ->
+            snapshot.forEachIndexed { index, note ->
+                if (list.none { it.id == note.id }) {
+                    list.add(index.coerceIn(0, list.size), note)
+                }
+            }
+        }
+    }
+
+    /**
+     * 批量删除。
+     *
+     * 批量选择后一次删 N 条时，逐条调用 [delete] 会触发 N 次「读文件 + 写文件 + 广播」，
+     * 数据量大时肉眼可见地卡，而且 N 次广播会让小组件重绘 N 遍。这里合成一次。
+     */
+    fun deleteAll(context: Context, ids: Collection<String>) {
+        if (ids.isEmpty()) return
+        val set = ids.toSet()
+        mutate(context) { list -> list.removeAll { it.id in set } }
+    }
+
+    /** 批量设置完成状态，理由同 [deleteAll]。 */
+    fun setDoneAll(context: Context, ids: Collection<String>, done: Boolean) {
+        if (ids.isEmpty()) return
+        val set = ids.toSet()
+        val now = System.currentTimeMillis()
+        mutate(context) { list ->
+            for (i in list.indices) {
+                if (list[i].id in set) {
+                    list[i] = list[i].copy(done = done, updatedAt = now)
+                }
+            }
+        }
     }
 
     /** 清空所有已完成项。 */

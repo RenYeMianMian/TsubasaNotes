@@ -251,4 +251,95 @@ class RepoTests {
         assertNotNull(n)
         assertTrue(Repo.all(ctx).any { it.id == n!!.id })
     }
+
+    @Test
+    fun `批量删除只落盘一次且删干净`() {
+        val a = Repo.add(ctx, "A")!!
+        val b = Repo.add(ctx, "B")!!
+        Repo.add(ctx, "C")
+
+        Repo.deleteAll(ctx, listOf(a.id, b.id))
+
+        val left = Repo.all(ctx)
+        assertEquals(1, left.size)
+        assertEquals("C", left.first().text)
+    }
+
+    @Test
+    fun `批量删除空集合不会动到数据`() {
+        Repo.add(ctx, "A")
+        Repo.deleteAll(ctx, emptyList())
+        assertEquals(1, Repo.all(ctx).size)
+    }
+
+    @Test
+    fun `批量标记完成`() {
+        val a = Repo.add(ctx, "A")!!
+        val b = Repo.add(ctx, "B")!!
+        Repo.add(ctx, "C")
+
+        Repo.setDoneAll(ctx, listOf(a.id, b.id), true)
+        assertEquals(2, Repo.all(ctx).count { it.done })
+
+        Repo.setDoneAll(ctx, listOf(a.id, b.id), false)
+        assertEquals(0, Repo.all(ctx).count { it.done })
+    }
+
+    @Test
+    fun `撤销删除能按原位置放回去`() {
+        val a = Repo.add(ctx, "A")!!
+        val b = Repo.add(ctx, "B")!!
+        val c = Repo.add(ctx, "C")!!
+        val snapshot = Repo.all(ctx)
+
+        Repo.deleteAll(ctx, listOf(b.id))
+        assertEquals(listOf("A", "C"), Repo.all(ctx).map { it.text })
+
+        // 撤销：B 应该回到 A 和 C 之间，而不是被塞到末尾
+        Repo.restore(ctx, snapshot)
+
+        assertEquals(listOf("A", "B", "C"), Repo.all(ctx).map { it.text })
+        assertEquals(a.id, Repo.all(ctx)[0].id)
+        assertEquals(c.id, Repo.all(ctx)[2].id)
+    }
+
+    @Test
+    fun `撤销不会把已存在的条目复制一份`() {
+        val a = Repo.add(ctx, "A")!!
+        val snapshot = Repo.all(ctx)
+
+        Repo.restore(ctx, snapshot)
+
+        assertEquals(1, Repo.all(ctx).size)
+        assertEquals(a.id, Repo.all(ctx).first().id)
+    }
+
+    @Test
+    fun `并发勾选同一条不会丢掉其中一次`() {
+        val a = Repo.add(ctx, "A")!!
+
+        // toggleDone 以前是先读、再单独走一次 setDone，两次操作各拿一次锁。
+        // 两个线程同时勾选时会都读到「未完成」，各自写回「已完成」，
+        // 结果就是点两下只生效一下。现在读改写在同一把锁里。
+        val t1 = Thread { Repo.toggleDone(ctx, a.id) }
+        val t2 = Thread { Repo.toggleDone(ctx, a.id) }
+        t1.start(); t2.start()
+        t1.join(); t2.join()
+
+        // 两次切换应该回到未完成
+        assertEquals(false, Repo.all(ctx).first().done)
+    }
+
+    @Test
+    fun `文件损坏被覆盖前会留一份备份`() {
+        Repo.file(ctx).writeText("{ 这不是合法 JSON")
+        assertEquals(0, Repo.all(ctx).size)
+
+        // 任何一次写入都会把损坏的内容冲掉，所以先备份
+        Repo.add(ctx, "新内容")
+
+        val backup = java.io.File(Repo.file(ctx).parentFile, "notes.json.corrupt")
+        assertTrue("损坏的数据应该被备份下来", backup.exists())
+        assertTrue(backup.readText().contains("这不是合法 JSON"))
+    }
 }
