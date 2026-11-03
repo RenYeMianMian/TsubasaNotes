@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
@@ -38,7 +37,6 @@ fun rememberAppBackdrop(
     path: String,
     baseColor: Color
 ): @Composable (Modifier) -> Unit {
-    val context = LocalContext.current
     val config = LocalConfiguration.current
     val density = LocalDensity.current
 

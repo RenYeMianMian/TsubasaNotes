@@ -13,12 +13,19 @@
         android:contentDescription="@null"
         android:importantForAccessibility="no" />
 
+    <!--
+      lint 建议把「图标 + 文字」合成一个 TextView 的 compoundDrawable。
+      这里不这么做：图标要单独用 setColorFilter 上色（见 AddNoteWidgetProvider），
+      合成之后 RemoteViews 就没法只给图标染色了。
+    -->
     <LinearLayout
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal"
         android:gravity="center"
-        android:padding="8dp">
+        android:padding="8dp"
+        tools:ignore="UseCompoundDrawables">
 
         <ImageView
             android:id="@+id/add_icon"
@@ -31,7 +38,7 @@
             android:id="@+id/add_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="6dp"
+            android:layout_marginStart="6dp"
             android:text="@string/widget_add_note"
             android:textSize="13sp"
             android:textStyle="bold"

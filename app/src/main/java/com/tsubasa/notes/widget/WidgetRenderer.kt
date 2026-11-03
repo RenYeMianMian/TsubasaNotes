@@ -251,7 +251,10 @@ object WidgetRenderer {
         val total = all.size
         val todo = all.count { !it.done }
         val pages = pageCount(total, Prefs.widgetPageSize(context))
-        val page = currentPage(context, widgetId)
+        // 直接从已经读到的 all 算页码，不再调 currentPage() ——
+        // 那样会把 notes.json 再完整读一遍。小组件每次刷新本来就要读好几次文件，
+        // 能省一次是一次（桌面进程里这是实打实的 IO）。
+        val page = Prefs.widgetPage(context, widgetId).coerceIn(0, pages - 1)
 
         // 标题显示「还有 N 项待办」——比显示 App 名字有用得多
         views.setTextViewText(R.id.widget_title, titleText(context, total, todo))

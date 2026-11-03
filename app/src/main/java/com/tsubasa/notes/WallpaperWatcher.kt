@@ -2,6 +2,7 @@ package com.tsubasa.notes
 
 import android.app.WallpaperManager
 import android.content.Context
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -35,7 +36,7 @@ import com.tsubasa.notes.data.WidgetBridge
  * ## 实际做法
  *
  * 在自己进程里直接向 `WallpaperManager` 注册配色回调（公开 API、**不需要任何权限**、
- * API 26 起可用）。配色一变就在本进程内收到通知，再用**定向广播**通知桌面重刷：
+ * API 27 起可用）。配色一变就在本进程内收到通知，再用**定向广播**通知桌面重刷：
  * [WidgetBridge.refresh] 带 `setPackage`，而 `BroadcastSkipPolicy.disallowBackgroundStart()`
  * 只拦「无 component、无 package、也没有 INCLUDE_BACKGROUND」的广播，
  * 所以定向广播不受后台启动限制影响，能可靠送达。
@@ -58,9 +59,17 @@ object WallpaperWatcher {
      *
      * @return 是否成功注册。失败不抛异常 —— 配色刷新属于锦上添花，
      *   不该让进程启动失败（个别 ROM 上 WallpaperManager 服务可能不可用）。
+     *   另外 `addOnColorsChangedListener` 是 API 27 才有的，minSdk 26 的设备上
+     *   这里会抛 [NoSuchMethodError]，同样被下面的 catch 兜住，只是拿不到即时刷新。
      */
     fun start(context: Context): Boolean {
         if (listener != null) return true
+        // addOnColorsChangedListener 是 API 27 才有的，minSdk 是 26。
+        // 显式判断一次，低版本直接放弃即时刷新（还有 15 分钟周期兜底）。
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+            Log.i(TAG, "系统版本低于 8.1，壁纸配色改为跟随周期刷新")
+            return false
+        }
         return try {
             val app = context.applicationContext
             val callback = WallpaperManager.OnColorsChangedListener { _, _ -> onColorsChanged(app) }

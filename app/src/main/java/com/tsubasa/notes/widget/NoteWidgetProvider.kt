@@ -100,10 +100,13 @@ class NoteWidgetProvider : AppWidgetProvider() {
 
     private fun turnPage(context: Context, widgetId: Int, delta: Int) {
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return
+        // 只读一次 notes.json：以前 orderedVisible() 和 currentPage() 各读一遍，
+        // 翻一次页要把文件解析两次。
         val total = WidgetRenderer.orderedVisible(context).size
         val size = Prefs.widgetPageSize(context).coerceAtLeast(1)
         val pages = WidgetRenderer.pageCount(total, size)
-        var page = WidgetRenderer.currentPage(context, widgetId) + delta
+        val current = Prefs.widgetPage(context, widgetId).coerceIn(0, pages - 1)
+        var page = current + delta
         // 循环翻页：最后一页再点「下一页」回到第一页
         if (page >= pages) page = 0
         if (page < 0) page = pages - 1

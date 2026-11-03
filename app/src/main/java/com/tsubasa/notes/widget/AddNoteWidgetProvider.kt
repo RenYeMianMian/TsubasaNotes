@@ -18,11 +18,11 @@ class AddNoteWidgetProvider : AppWidgetProvider() {
         // 套上应用内选定的语言：按钮文字是布局里 bake 的 @string/widget_add_note，
         // 那部分由桌面进程 inflate（跟随系统语言，我们管不了），
         // 但这里主动取字符串的地方（以及配色）要走我们的语言。
-        val context = L10n.wrap(context)
+        val localized = L10n.wrap(context)
         appWidgetIds.forEach { id ->
-            val scheme = Palette.scheme(context)
+            val scheme = Palette.scheme(localized)
             val views = android.widget.RemoteViews(
-                context.packageName,
+                localized.packageName,
                 com.tsubasa.notes.R.layout.widget_add_button
             )
             views.setInt(com.tsubasa.notes.R.id.add_bg, "setColorFilter", scheme.accent)
@@ -32,17 +32,17 @@ class AddNoteWidgetProvider : AppWidgetProvider() {
             // 这里显式覆盖一次，按钮文字才会跟随应用内选定的语言。
             views.setTextViewText(
                 com.tsubasa.notes.R.id.add_text,
-                context.getString(com.tsubasa.notes.R.string.widget_add_note)
+                localized.getString(com.tsubasa.notes.R.string.widget_add_note)
             )
 
-            val i = Intent(context, com.tsubasa.notes.MainActivity::class.java).apply {
+            val i = Intent(localized, com.tsubasa.notes.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(com.tsubasa.notes.MainActivity.EXTRA_NEW_NOTE, true)
             }
             views.setOnClickPendingIntent(
                 com.tsubasa.notes.R.id.add_root,
                 PendingIntent.getActivity(
-                    context, 400 + id, i,
+                    localized, 400 + id, i,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             )
@@ -50,7 +50,7 @@ class AddNoteWidgetProvider : AppWidgetProvider() {
         }
         // 只装了「快速添加」也算有小组件，同样要跑定时刷新，否则这个按钮的配色
         // 会一直停在旧主题色上。
-        WidgetRefreshScheduler.sync(context)
+        WidgetRefreshScheduler.sync(localized)
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
